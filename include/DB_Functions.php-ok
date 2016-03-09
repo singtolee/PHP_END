@@ -1,0 +1,141 @@
+<?php
+ 
+class DB_Functions {
+ 
+    private $conn;
+ 
+    // constructor
+    function __construct() {
+        require_once 'DB_Connect.php';
+        // connecting to database
+        $db = new Db_Connect();
+        $this->conn = $db->connect();
+    }
+ 
+    // destructor
+    function __destruct() {
+         
+    }
+ 
+    /**
+     * Storing new user
+     * returns user details
+     */
+    public function storeUser($firstname, $lastname, $email, $password) {
+        $encrypted_password = md5($password); // encrypted password
+ 
+        $stmt = $this->conn->prepare("INSERT INTO oc_app_user(fname, lname, email, password, date_added) VALUES(?, ?, ?, ?, NOW() )");
+        $stmt->bind_param("ssss", $firstname, $lastname, $email,  $encrypted_password);
+        $result = $stmt->execute();
+        $stmt->close();
+ 
+        // check for successful store
+        if ($result) {
+            $stmt = $this->conn->prepare("SELECT fname, lname, email, date_added FROM oc_app_user WHERE email = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+			$stmt->store_result();
+			$stmt->bind_result($fname,$lname, $email, $date_added);
+		while($stmt->fetch()){
+			$user["firstname"] = $fname;
+			$user["lastname"] = $lname;
+			$user["email"] = $email;
+			$user["date_added"] = $date_added;
+		}
+			$stmt->free_result;
+            $stmt->close();
+            return $user;
+        } else {
+            return false;
+        }
+    }
+	
+	public function getfruit(){
+		//$sql = "SELECT product_id, model, image, price FROM oc_product WHERE tax_class_id = 10 ORDER BY date_added DESC ";
+		//$sql = "SELECT product_id, model, image, price FROM oc_product WHERE tax_class_id = 10 ";
+		//$sqlnormal = "SELECT oc_product.product_id, oc_product.quantity,oc_product.price, oc_product.image, oc_product_description.name, oc_product_description.description FROM oc_product, oc_product_description WHERE oc_product.tax_class_id = 10 AND oc_product.product_id = oc_product_description.product_id";
+		
+		$sqldes = "SELECT oc_product.product_id, oc_product.quantity,oc_product.price, oc_product.image, oc_product_description.name, oc_product_description.description FROM oc_product, oc_product_description WHERE oc_product.tax_class_id = 10 AND oc_product.product_id = oc_product_description.product_id ORDER BY oc_product.date_added DESC";
+		
+		$fruit = $this->conn->query($sqldes);
+		$prefix = "http://shop.dishhub.co/image/";
+		$i =0;
+		while($row = $fruit->fetch_row()){
+			$fruitcut[$i]["id"] = $row[0];
+			$fruitcut[$i]["quantity"] = $row[1];
+			$fruitcut[$i]["price"] = $row[2];
+			$fruitcut[$i]["image"] = stripslashes($prefix.$row[3]);
+			$fruitcut[$i]["name"] = $row[4];
+			$fruitcut[$i]["description"] = $row[5];
+			$i++;
+		}
+		$fruit->close();
+		return $fruitcut;
+	}
+	
+	public function loadofficebuilding(){
+		$sql = "SELECT building FROM oc_app_building";
+		$ob = $this->conn->query($sql);
+		$i = 0;
+		while($row = $ob ->fetch_row()){
+			$building[$i]=$row[0];
+			$i++;
+		}
+		$ob->close();
+		return $building;
+	}
+ 
+    /**
+     * Get user by email and password
+     */
+    public function getUserByEmailAndPassword($email, $password) {
+		
+		$ppssww = $password;
+ 
+        $stmt = $this->conn->prepare("SELECT fname,  lname,  email, password, date_added FROM oc_app_user WHERE email = ?");
+ 
+        $stmt->bind_param("s", $email);
+		$stmt->execute();
+		$stmt->store_result();
+		$stmt->bind_result($firstname,$lastname, $email, $password,  $date_added);
+		while($stmt->fetch()){
+			$user["firstname"] = $firstname;
+			$user["lastname"] = $lastname;
+			$user["email"] = $email;
+			$user["psw"] = $password;
+			$user["date_added"] = $date_added;}
+			
+			if(md5($ppssww)==$user["psw"]){
+				$stmt->free_result;
+				$stmt->close();
+				return $user;
+			}else{
+				return NULL;
+			}
+	}
+    /**
+     * Check user is existed or not
+     */
+    public function isUserExisted($email) {
+        $stmt = $this->conn->prepare("SELECT email from oc_app_user WHERE email = ?");
+ 
+        $stmt->bind_param("s", $email);
+ 
+        $stmt->execute();
+ 
+        $stmt->store_result();
+ 
+        if ($stmt->num_rows > 0) {
+            // user existed 
+            $stmt->close();
+            return true;
+        } else {
+            // user not existed
+            $stmt->close();
+            return false;
+        }
+    }
+ 
+}
+ 
+?>
